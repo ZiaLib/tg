@@ -25,6 +25,7 @@ class Client extends t.Client {
   StreamSubscription? _updateSubscription;
   bool _connected = false;
   int _connectionAttempts = 0;
+  bool _migrating = false;
 
   List<t.DcOption> get dcOptions => _dcOptions;
 
@@ -78,6 +79,7 @@ class Client extends t.Client {
         await _performConnect();
         _connected = true;
         _connectionAttempts = 0;
+        _migrating = false;
         break;
       } catch (e) {
         _connected = false;
@@ -147,6 +149,10 @@ class Client extends t.Client {
     obfuscation = Obfuscation.random(false, session.dcOption!.id);
     idGenerator = MessageIdGenerator();
     await socket.send(obfuscation.preamble);
+    if (_migrating) {
+      session.authorizationKey = null;
+      _migrating = false;
+    }
     session.authorizationKey ??= await authorize(
       socket,
       obfuscation,
@@ -183,7 +189,7 @@ class Client extends t.Client {
   }
 
   Future<void> _handleDisconnection() async {
-    if (!autoReconnect || !_connected) return;
+    if (!autoReconnect || !_connected || _migrating) return;
     _connected = false;
     try {
       await _connectWithRetry();
@@ -242,10 +248,18 @@ class Client extends t.Client {
     int attempts,
   ) async {
     try {
+      if (!_connected) {
+        if (autoReconnect && !_migrating) {
+          await _handleDisconnection();
+        } else {
+          throw Exception('Client not connected');
+        }
+      }
       final result = await _invokeInternal(method).timeout(timeout);
       final error = result.error;
       if (error != null) {
         if (error.errorMessage.contains('MIGRATE')) {
+          _migrating = true;
           final dcId = int.parse(error.errorMessage.split('_').last);
           session.dcOption = _dcOptions.firstWhere(
             (dcOption) => dcOption.id == dcId && !dcOption.ipv6,
