@@ -301,32 +301,32 @@ class Client extends t.Client {
     final m = idGenerator._next(preferEncryption);
     if (preferEncryption && msgsToAck.isNotEmpty) {
       // idGenerator._next(false);
-      final ack = idGenerator._next(false);
-      final ackMsg = t.MsgsAck(msgIds: msgsToAck.toList());
+      // final ack = idGenerator._next(false);
+      // final ackMsg = t.MsgsAck(msgIds: msgsToAck.toList());
       msgsToAck.clear();
-      final container = t.MsgContainer(
-        messages: [
-          t.Msg(
-            msgId: m.id,
-            seqno: m.seqno,
-            bytes: 0,
-            body: method,
-          ),
-          t.Msg(
-            msgId: ack.id,
-            seqno: ack.seqno,
-            bytes: 0,
-            body: ackMsg,
-          )
-        ],
-      );
-      void nop(TlObject o) {}
-      nop(container);
+      // final container = t.MsgContainer(
+      //   messages: [
+      //     t.Msg(
+      //       msgId: m.id,
+      //       seqno: m.seqno,
+      //       bytes: 0,
+      //       body: method,
+      //     ),
+      //     t.Msg(
+      //       msgId: ack.id,
+      //       seqno: ack.seqno,
+      //       bytes: 0,
+      //       body: ackMsg,
+      //     )
+      //   ],
+      // );
+      // void nop(TlObject o) {}
+      // nop(container);
     }
     _pending[m.id] = completer;
     final buffer = authorizationKey.id == 0
         ? _encodeNoAuth(method, m)
-        : _encodeWithAuth(method, m, 11, authorizationKey);
+        : _encodeWithAuth(method, m, 10, authorizationKey);
     obfuscation.send.encryptDecrypt(buffer, buffer.length);
     await socket.send(buffer);
     return completer.future;
