@@ -179,23 +179,16 @@ class Client extends t.Client {
   }
 
   Future<t.Result<t.Config>> _initConnection() async {
-    try {
-      return await initConnection<t.Config>(
-        apiId: apiId,
-        deviceModel: session.device!.deviceModel!,
-        appVersion: session.device!.appVersion!,
-        systemVersion: session.device!.systemVersion!,
-        systemLangCode: session.device!.systemLangCode!,
-        langCode: session.device!.langCode!,
-        langPack: '',
-        query: t.HelpGetConfig(),
-      );
-    } catch (e, stack) {
-      print('initerr');
-      print(e);
-      print(stack);
-      rethrow;
-    }
+    return await initConnection<t.Config>(
+      apiId: apiId,
+      deviceModel: session.device!.deviceModel!,
+      appVersion: session.device!.appVersion!,
+      systemVersion: session.device!.systemVersion!,
+      systemLangCode: session.device!.systemLangCode!,
+      langCode: session.device!.langCode!,
+      langPack: '',
+      query: t.HelpGetConfig(),
+    );
     // final request = InitConnection();
     // return await invoke(InvokeWithLayer(layer: layer, query: request))
     //     as t.Result<t.Config>;
@@ -274,6 +267,8 @@ class Client extends t.Client {
       final result = await _invokeInternal(method).timeout(timeout);
       final error = result.error;
       if (error != null) {
+        print('rpcerr');
+        print(error.toString());
         if (error.errorMessage.contains('MIGRATE')) {
           _migrating = true;
           final dcId = int.parse(error.errorMessage.split('_').last);
@@ -289,7 +284,10 @@ class Client extends t.Client {
         }
       }
       return result;
-    } catch (e) {
+    } catch (e, stack) {
+      print('nativeerr');
+      print(e);
+      print(stack);
       if (_shouldRetryException(e, attempts)) {
         await Future.delayed(retryDelay);
         if (!_connected && autoReconnect) {
