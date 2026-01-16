@@ -18,6 +18,7 @@ class Client extends t.Client {
   late MessageIdGenerator idGenerator;
 
   late _EncryptedTransformer _transformer;
+  StreamSubscription? _transformerSubscription;
   final Map<int, Completer<t.Result>> _pending = {};
   StreamController<UpdatesBase>? _streamController;
 
@@ -164,11 +165,12 @@ class Client extends t.Client {
     ).timeout(timeout);
     authorizationKey = session.authorizationKey!;
     _transformer = _EncryptedTransformer(
+      // 여기
       socket.receiver,
       obfuscation,
       authorizationKey,
     );
-    _transformer.stream.listen((v) {
+    _transformerSubscription = _transformer.stream.listen((v) {
       _handleIncomingMessage(v);
     });
     final config = await _initConnection().timeout(timeout);
@@ -356,6 +358,8 @@ class Client extends t.Client {
 
   Future<void> close() async {
     _connected = false;
+    await _transformerSubscription?.cancel();
+    _transformerSubscription = null;
     await _updateSubscription?.cancel();
     _updateSubscription = null;
     await _streamController?.close();
