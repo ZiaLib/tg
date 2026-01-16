@@ -264,6 +264,7 @@ class Client extends t.Client {
           throw Exception('Client not connected');
         }
       }
+      print(method);
       final result = await _invokeInternal(method).timeout(timeout);
       final error = result.error;
       if (error != null) {
