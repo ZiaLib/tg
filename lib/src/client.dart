@@ -264,12 +264,9 @@ class Client extends t.Client {
           throw Exception('Client not connected');
         }
       }
-      print(method);
       final result = await _invokeInternal(method).timeout(timeout);
       final error = result.error;
       if (error != null) {
-        print('rpcerr');
-        print(error.toString());
         if (error.errorMessage.contains('MIGRATE')) {
           _migrating = true;
           final dcId = int.parse(error.errorMessage.split('_').last);
@@ -285,10 +282,7 @@ class Client extends t.Client {
         }
       }
       return result;
-    } catch (e, stack) {
-      print('nativeerr');
-      print(e);
-      print(stack);
+    } catch (e) {
       if (_shouldRetryException(e, attempts)) {
         await Future.delayed(retryDelay);
         if (!_connected && autoReconnect) {
@@ -332,7 +326,7 @@ class Client extends t.Client {
     _pending[m.id] = completer;
     final buffer = authorizationKey.id == 0
         ? _encodeNoAuth(method, m)
-        : _encodeWithAuth(method, m, 10, authorizationKey);
+        : _encodeWithAuth(method, m, 11, authorizationKey);
     obfuscation.send.encryptDecrypt(buffer, buffer.length);
     await socket.send(buffer);
     return completer.future;
