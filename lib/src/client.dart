@@ -199,6 +199,8 @@ class Client extends t.Client {
   }
 
   void _handleIncomingMessage(t.TlObject msg) {
+    print('income');
+    print(msg.toString());
     if (msg is UpdatesBase) {
       _streamController.add(msg);
     }
@@ -316,6 +318,9 @@ class Client extends t.Client {
       // void nop(TlObject o) {}
       // nop(container);
     }
+    print('go');
+    print(m.id);
+    print(method.toString());
     _pending[m.id] = completer;
     final buffer = session.authorizationKey!.id == 0
         ? _encodeNoAuth(method, m)
