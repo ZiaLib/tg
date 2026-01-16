@@ -16,6 +16,11 @@ import 'package:t/t.dart' as t;
 import 'src/crypto.dart';
 import 'src/encrypt.dart';
 
+import 'dart:io';
+import 'package:socks5_proxy/socks.dart';
+import 'src/io_socket.dart';
+import 'src/model.dart';
+
 part 'src/decoders.dart';
 part 'src/encoders.dart';
 part 'src/check2fa.dart';
