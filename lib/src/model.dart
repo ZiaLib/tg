@@ -1,9 +1,5 @@
-import 'dart:typed_data';
-import 'package:json_annotation/json_annotation.dart';
-import 'package:t/t.dart';
-import 'package:tg/tg.dart';
-
-part 'model.g.dart';
+// part 'model.g.dart';
+part of '../tg.dart';
 
 class DcOptionConverter
     implements JsonConverter<DcOption?, Map<String, dynamic>?> {
@@ -105,7 +101,7 @@ class ProxyConfigConverter
     if (json == null) return null;
 
     final type = ProxyType.values.firstWhere(
-          (e) => e.toString().split('.').last == json['type'],
+      (e) => e.toString().split('.').last == json['type'],
       orElse: () => ProxyType.none,
     );
     switch (type) {

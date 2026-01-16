@@ -19,7 +19,12 @@ import 'src/encrypt.dart';
 import 'dart:io';
 import 'package:socks5_proxy/socks.dart';
 import 'src/io_socket.dart';
-import 'src/model.dart';
+import 'package:json_annotation/json_annotation.dart';
+
+part 'src/model.dart';
+part 'src/model.g.dart';
+
+
 
 part 'src/decoders.dart';
 part 'src/encoders.dart';

@@ -1,6 +1,8 @@
+part of '../tg.dart';
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'model.dart';
+// part of 'model.dart';
 
 // **************************************************************************
 // JsonSerializableGenerator
