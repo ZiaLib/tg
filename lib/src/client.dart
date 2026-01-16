@@ -194,6 +194,8 @@ class Client extends t.Client {
   }
 
   void _handleIncomingMessage(t.TlObject msg) {
+    print('income');
+    print(msg);
     if (msg is UpdatesBase) {
       _streamController.add(msg);
     }
@@ -206,10 +208,12 @@ class Client extends t.Client {
       _handleIncomingMessage(msg.body);
       return;
     } else if (msg is t.BadMsgNotification) {
+      print('handle1');
       final badMsgId = msg.badMsgId;
       final task = _pending[badMsgId];
       final method = _pendingMethods[badMsgId];
       if (msg is t.BadServerSalt) {
+        print('handle2');
         session.authorizationKey = AuthorizationKey(
           session.authorizationKey!.id,
           session.authorizationKey!.key,
