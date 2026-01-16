@@ -84,7 +84,9 @@ class Client extends t.Client {
         _connectionAttempts = 0;
         _migrating = false;
         break;
-      } catch (_) {
+      } catch (e, stack) {
+        print(e);
+        print(stack);
         _connected = false;
         _connectionAttempts++;
         if (connectionRetries != null &&
@@ -296,26 +298,28 @@ class Client extends t.Client {
     final completer = Completer<t.Result>();
     final m = idGenerator._next(preferEncryption);
     if (preferEncryption && msgsToAck.isNotEmpty) {
-      idGenerator._next(false);
-      // final ack = idGenerator._next(false);
-      // final ackMsg = t.MsgsAck(msgIds: msgsToAck.toList());
+      // idGenerator._next(false);
+      final ack = idGenerator._next(false);
+      final ackMsg = t.MsgsAck(msgIds: msgsToAck.toList());
       msgsToAck.clear();
-      // final container = t.MsgContainer(
-      //   messages: [
-      //     t.Msg(
-      //       msgId: m.id,
-      //       seqno: m.seqno,
-      //       bytes: 0,
-      //       body: method,
-      //     ),
-      //     t.Msg(
-      //       msgId: ack.id,
-      //       seqno: ack.seqno,
-      //       bytes: 0,
-      //       body: ackMsg,
-      //     )
-      //   ],
-      // );
+      final container = t.MsgContainer(
+        messages: [
+          t.Msg(
+            msgId: m.id,
+            seqno: m.seqno,
+            bytes: 0,
+            body: method,
+          ),
+          t.Msg(
+            msgId: ack.id,
+            seqno: ack.seqno,
+            bytes: 0,
+            body: ackMsg,
+          )
+        ],
+      );
+      void nop(TlObject o) {}
+      nop(container);
     }
     _pending[m.id] = completer;
     final buffer = authorizationKey.id == 0
