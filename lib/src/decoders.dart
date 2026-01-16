@@ -5,9 +5,11 @@ class _EncryptedTransformer {
     this._receiver,
     this._obfuscation,
     this._authorizationKey,
-  );
+  ) {
+    _receiver.listen(_readFrame);
+  }
 
-  StreamSubscription<List<int>>? _subscription;
+  //StreamSubscription<List<int>>? _subscription;
 
   final _streamController = StreamController<TlObject>.broadcast();
   Stream<TlObject> get stream => _streamController.stream;
@@ -18,15 +20,6 @@ class _EncryptedTransformer {
 
   final List<int> _read = [];
   int? _length;
-
-  void start() {
-    _subscription = _receiver.listen(_readFrame);
-  }
-
-  Future<void> dispose() async {
-    await _subscription?.cancel();
-    await _streamController.close();
-  }
 
   void _readFrame(List<int> l) {
     _read.addAll(l);
