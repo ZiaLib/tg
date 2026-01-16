@@ -4,6 +4,7 @@ class Client extends t.Client {
   final int apiId;
   final String apiHash;
   final void Function(t.UpdatesBase updates)? onUpdate;
+  final void Function(AuthorizationKey authKey)? onAuthKeyUpdate;
   TelegramSession session;
 
   final Duration timeout;
@@ -38,6 +39,7 @@ class Client extends t.Client {
     required this.apiHash,
     required this.session,
     this.onUpdate,
+    this.onAuthKeyUpdate,
     this.timeout = const Duration(seconds: 10),
     this.requestRetries = 5,
     this.connectionRetries,
@@ -218,12 +220,16 @@ class Client extends t.Client {
         session.authorizationKey!.key,
         msg.newServerSalt,
       );
+      onAuthKeyUpdate?.call(session.authorizationKey!);
       if (method != null && task != null && !task.isCompleted) {
         _pending.remove(badMsgId);
         _pendingMethods.remove(badMsgId);
         Future.microtask(() async {
           try {
+            print('beforetest!');
             final result = await _invokeInternal(method).timeout(timeout);
+            print('test!');
+            print(result.toString());
             task.complete(result);
           } catch (e) {
             task.completeError(e);
