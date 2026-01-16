@@ -17,7 +17,7 @@ class Client extends t.Client {
   late IoSocket socket;
   late MessageIdGenerator idGenerator;
 
-  late _EncryptedTransformer _transformer;
+  _EncryptedTransformer? _transformer;
   final Map<int, Completer<t.Result>> _pending = {};
   StreamController<UpdatesBase>? _streamController;
 
@@ -168,8 +168,8 @@ class Client extends t.Client {
       obfuscation,
       authorizationKey,
     );
-    _transformer.start();
-    _transformer.stream.listen((v) {
+    _transformer!.start();
+    _transformer!.stream.listen((v) {
       _handleIncomingMessage(v);
     });
     final config = await _initConnection().timeout(timeout);
@@ -357,7 +357,7 @@ class Client extends t.Client {
 
   Future<void> close() async {
     _connected = false;
-    await _transformer.dispose();
+    await _transformer?.dispose();
     await _updateSubscription?.cancel();
     _updateSubscription = null;
     await _streamController?.close();
