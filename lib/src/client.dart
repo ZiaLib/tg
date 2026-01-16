@@ -23,6 +23,7 @@ class Client extends t.Client {
 
   List<t.DcOption> _dcOptions = [];
   StreamSubscription? _updateSubscription;
+  StreamSubscription? _transformerSubscription;
   bool _connected = false;
   int _connectionAttempts = 0;
   bool _migrating = false;
@@ -169,7 +170,7 @@ class Client extends t.Client {
       obfuscation,
       authorizationKey,
     );
-    _transformer.stream.listen((v) {
+    _transformerSubscription = _transformer.stream.listen((v) {
       _handleIncomingMessage(v);
     });
     final config = await _initConnection().timeout(timeout);
@@ -361,6 +362,8 @@ class Client extends t.Client {
     _updateSubscription = null;
     await _streamController?.close();
     _streamController = null;
+    await _transformerSubscription?.cancel();
+    _transformerSubscription = null;
     for (final completer in _pending.values) {
       if (!completer.isCompleted) {
         completer.completeError(
