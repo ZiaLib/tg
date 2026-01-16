@@ -196,8 +196,6 @@ class Client extends t.Client {
   }
 
   void _handleIncomingMessage(t.TlObject msg) {
-    print('income');
-    print(msg);
     if (msg is UpdatesBase) {
       _streamController.add(msg);
     }
@@ -210,6 +208,9 @@ class Client extends t.Client {
       _handleIncomingMessage(msg.body);
       return;
     } else if (msg is t.BadServerSalt) {
+      if (_pending.containsKey(msg.badMsgId)) {
+        print(msg.toString());
+      }
       final badMsgId = msg.badMsgId;
       final task = _pending[badMsgId];
       final method = _pendingMethods[badMsgId];
@@ -224,10 +225,7 @@ class Client extends t.Client {
         _pendingMethods.remove(badMsgId);
         Future.microtask(() async {
           try {
-            print('beforetest!');
             final result = await _invokeInternal(method).timeout(timeout);
-            print('test!');
-            print(result.toString());
             task.complete(result);
           } catch (e) {
             task.completeError(e);
@@ -236,12 +234,18 @@ class Client extends t.Client {
         return;
       }
     } else if (msg is t.BadMsgNotification) {
+      if (_pending.containsKey(msg.badMsgId)) {
+        print(msg.toString());
+      }
       final badMsgId = msg.badMsgId;
       final task = _pending[badMsgId];
       task?.completeError(BadMessageException._(msg));
       _pending.remove(badMsgId);
       _pendingMethods.remove(badMsgId);
     } else if (msg is t.RpcResult) {
+      if (_pending.containsKey(msg.reqMsgId)) {
+        print(msg.toString());
+      }
       final reqMsgId = msg.reqMsgId;
       final task = _pending[reqMsgId];
       final result = msg.result;
@@ -288,8 +292,6 @@ class Client extends t.Client {
       final result = await _invokeInternal(method).timeout(timeout);
       final error = result.error;
       if (error != null) {
-        print('rpcerror');
-        print(error.errorMessage);
         if (error.errorMessage.contains('MIGRATE')) {
           _migrating = true;
           final dcId = int.parse(error.errorMessage.split('_').last);
@@ -306,8 +308,6 @@ class Client extends t.Client {
       }
       return result;
     } catch (e) {
-      print('nativeerror');
-      print(e);
       if (_shouldRetryException(e, attempts)) {
         await Future.delayed(retryDelay);
         if (!_connected && autoReconnect) {
