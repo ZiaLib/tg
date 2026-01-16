@@ -369,7 +369,7 @@ class Client extends t.Client {
     }
     _pending.clear();
     try {
-      socket.socket.destroy();
+      await socket.socket.close();
     } catch (_) {}
   }
 }
