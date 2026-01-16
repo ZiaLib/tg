@@ -197,14 +197,23 @@ class Client extends t.Client {
     print('income');
     print(msg);
     if (msg is UpdatesBase) {
+      print('income1');
       _streamController.add(msg);
     }
+
+    if (msg is t.BadMsgNotificationBase) {
+
+      print('testincome');
+    }
+
     if (msg is t.MsgContainer) {
+      print('income2');
       for (final message in msg.messages) {
         _handleIncomingMessage(message);
       }
       return;
     } else if (msg is t.Msg) {
+      print('income3');
       _handleIncomingMessage(msg.body);
       return;
     } else if (msg is t.BadMsgNotification) {
