@@ -83,9 +83,7 @@ class Client extends t.Client {
         _connectionAttempts = 0;
         _migrating = false;
         break;
-      } catch (e, stack) {
-        print(e);
-        print(stack);
+      } catch (_) {
         _connected = false;
         _connectionAttempts++;
         if (connectionRetries != null &&
@@ -323,7 +321,30 @@ class Client extends t.Client {
     final completer = Completer<t.Result>();
     final m = idGenerator._next(preferEncryption);
     if (preferEncryption && msgsToAck.isNotEmpty) {
+      final ack = idGenerator._next(false);
+      final ackMsg = MsgsAck(msgIds: msgsToAck.toList());
       msgsToAck.clear();
+      final container = MsgContainer(
+        messages: [
+          Msg(
+            msgId: m.id,
+            seqno: m.seqno,
+            bytes: 0,
+            body: method,
+          ),
+          Msg(
+            msgId: ack.id,
+            seqno: ack.seqno,
+            bytes: 0,
+            body: ackMsg,
+          )
+        ],
+      );
+      void nop(TlObject o) {} // FIXME: wtf?
+      nop(container);
+    }
+    if (method is t.InvokeWithLayer) {
+      print('invokewith!');
     }
     _pending[m.id] = completer;
     _pendingMethods[m.id] = method;
