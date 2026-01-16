@@ -220,6 +220,14 @@ class Client extends t.Client {
         msg.newServerSalt,
       );
       onAuthKeyUpdate?.call(session.authorizationKey!);
+      _transformer = _EncryptedTransformer(
+        socket.receiver,
+        obfuscation,
+        session.authorizationKey!,
+      );
+      _transformer.stream.listen((v) {
+        _handleIncomingMessage(v);
+      });
       if (method != null && task != null && !task.isCompleted) {
         _pending.remove(badMsgId);
         _pendingMethods.remove(badMsgId);
