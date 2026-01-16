@@ -14,7 +14,7 @@ class Client extends t.Client {
 
   late AuthorizationKey authorizationKey;
   late Obfuscation obfuscation;
-  IoSocket? socket;
+  late IoSocket socket;
   late MessageIdGenerator idGenerator;
 
   late _EncryptedTransformer _transformer;
@@ -152,19 +152,19 @@ class Client extends t.Client {
     );
     obfuscation = Obfuscation.random(false, session.dcOption!.id);
     idGenerator = MessageIdGenerator();
-    await socket!.send(obfuscation.preamble);
+    await socket.send(obfuscation.preamble);
     if (_migrating) {
       session.authorizationKey = null;
       _migrating = false;
     }
     session.authorizationKey ??= await authorize(
-      socket!,
+      socket,
       obfuscation,
       idGenerator,
     ).timeout(timeout);
     authorizationKey = session.authorizationKey!;
     _transformer = _EncryptedTransformer(
-      socket!.receiver,
+      socket.receiver,
       obfuscation,
       authorizationKey,
     );
@@ -325,7 +325,7 @@ class Client extends t.Client {
         ? _encodeNoAuth(method, m)
         : _encodeWithAuth(method, m, 10, authorizationKey);
     obfuscation.send.encryptDecrypt(buffer, buffer.length);
-    await socket!.send(buffer);
+    await socket.send(buffer);
     return completer.future;
   }
 
@@ -369,8 +369,7 @@ class Client extends t.Client {
     }
     _pending.clear();
     try {
-      await socket?.socket.close();
+      socket.socket.destroy();
     } catch (_) {}
-    socket = null;
   }
 }
