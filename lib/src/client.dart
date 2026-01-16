@@ -84,7 +84,9 @@ class Client extends t.Client {
         _connectionAttempts = 0;
         _migrating = false;
         break;
-      } catch (e) {
+      } catch (e, stack) {
+        print(e);
+        print(stack);
         _connected = false;
         _connectionAttempts++;
         if (connectionRetries != null &&
