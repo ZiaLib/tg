@@ -231,7 +231,10 @@ class Client extends t.Client {
         });
         return;
       }
-      task?.completeError(msg);
+    } else if (msg is t.BadMsgNotification) {
+      final badMsgId = msg.badMsgId;
+      final task = _pending[badMsgId];
+      task?.completeError(BadMessageException._(msg));
       _pending.remove(badMsgId);
       _pendingMethods.remove(badMsgId);
     } else if (msg is t.RpcResult) {
