@@ -12,7 +12,6 @@ class Client extends t.Client {
   final Duration retryDelay;
   final bool autoReconnect;
 
-  late AuthorizationKey authorizationKey;
   late Obfuscation obfuscation;
   late IoSocket socket;
   late MessageIdGenerator idGenerator;
@@ -162,11 +161,10 @@ class Client extends t.Client {
       obfuscation,
       idGenerator,
     ).timeout(timeout);
-    authorizationKey = session.authorizationKey!;
     _transformer = _EncryptedTransformer(
       socket.receiver,
       obfuscation,
-      authorizationKey,
+      session.authorizationKey!,
     );
     _transformer.stream.listen((v) {
       _handleIncomingMessage(v);
@@ -204,6 +202,7 @@ class Client extends t.Client {
   }
 
   void _handleIncomingMessage(t.TlObject msg) {
+    print('testtesttest');
     if (msg is t.UpdatesBase) {
       if (_streamController?.isClosed == false) {
         _streamController!.add(msg);
@@ -295,8 +294,8 @@ class Client extends t.Client {
   }
 
   Future<t.Result<t.TlObject>> _invokeInternal(t.TlMethod method) async {
-    final preferEncryption = authorizationKey.id != 0;
-    final msgsToAck = authorizationKey._msgsToAck;
+    final preferEncryption = session.authorizationKey!.id != 0;
+    final msgsToAck = session.authorizationKey!._msgsToAck;
     final completer = Completer<t.Result>();
     final m = idGenerator._next(preferEncryption);
     if (preferEncryption && msgsToAck.isNotEmpty) {
@@ -324,9 +323,9 @@ class Client extends t.Client {
       // nop(container);
     }
     _pending[m.id] = completer;
-    final buffer = authorizationKey.id == 0
+    final buffer = session.authorizationKey!.id == 0
         ? _encodeNoAuth(method, m)
-        : _encodeWithAuth(method, m, 10, authorizationKey);
+        : _encodeWithAuth(method, m, 10, session.authorizationKey!);
     obfuscation.send.encryptDecrypt(buffer, buffer.length);
     await socket.send(buffer);
     return completer.future;
