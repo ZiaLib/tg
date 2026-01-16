@@ -195,7 +195,7 @@ class Client extends t.Client {
     } catch (_) {}
   }
 
-  void _handleIncomingMessage(t.TlObject msg) {
+  Future<void> _handleIncomingMessage(t.TlObject msg) async {
     if (msg is UpdatesBase) {
       _streamController.add(msg);
     }
@@ -220,14 +220,7 @@ class Client extends t.Client {
         msg.newServerSalt,
       );
       onAuthKeyUpdate?.call(session.authorizationKey!);
-      _transformer = _EncryptedTransformer(
-        socket.receiver,
-        obfuscation,
-        session.authorizationKey!,
-      );
-      _transformer.stream.listen((v) {
-        _handleIncomingMessage(v);
-      });
+      await connect();
       if (method != null && task != null && !task.isCompleted) {
         _pending.remove(badMsgId);
         _pendingMethods.remove(badMsgId);
