@@ -14,7 +14,7 @@ class Client extends t.Client {
 
   late AuthorizationKey authorizationKey;
   late Obfuscation obfuscation;
-  late IoSocket socket;
+  IoSocket? socket;
   late MessageIdGenerator idGenerator;
 
   late _EncryptedTransformer _transformer;
@@ -135,37 +135,36 @@ class Client extends t.Client {
         break;
     }
     socket = IoSocket(rawSocket);
-    // await _updateSubscription?.cancel();
-    // _updateSubscription = stream.listen(
-    //   (updates) {
-    //     onUpdate?.call(updates);
-    //   },
-    //   onError: (error) async {
-    //     if (autoReconnect) {
-    //       await _handleDisconnection();
-    //     }
-    //   },
-    //   onDone: () async {
-    //     if (autoReconnect) {
-    //       await _handleDisconnection();
-    //     }
-    //   },
-    // );
+    _updateSubscription = stream.listen(
+      (updates) {
+        onUpdate?.call(updates);
+      },
+      onError: (error) async {
+        if (autoReconnect) {
+          await _handleDisconnection();
+        }
+      },
+      onDone: () async {
+        if (autoReconnect) {
+          await _handleDisconnection();
+        }
+      },
+    );
     obfuscation = Obfuscation.random(false, session.dcOption!.id);
     idGenerator = MessageIdGenerator();
-    await socket.send(obfuscation.preamble);
+    await socket!.send(obfuscation.preamble);
     if (_migrating) {
       session.authorizationKey = null;
       _migrating = false;
     }
     session.authorizationKey ??= await authorize(
-      socket,
+      socket!,
       obfuscation,
       idGenerator,
     ).timeout(timeout);
     authorizationKey = session.authorizationKey!;
     _transformer = _EncryptedTransformer(
-      socket.receiver,
+      socket!.receiver,
       obfuscation,
       authorizationKey,
     );
@@ -326,7 +325,7 @@ class Client extends t.Client {
         ? _encodeNoAuth(method, m)
         : _encodeWithAuth(method, m, 10, authorizationKey);
     obfuscation.send.encryptDecrypt(buffer, buffer.length);
-    await socket.send(buffer);
+    await socket!.send(buffer);
     return completer.future;
   }
 
@@ -370,7 +369,8 @@ class Client extends t.Client {
     }
     _pending.clear();
     try {
-      await socket.socket.close();
+      await socket?.socket.close();
     } catch (_) {}
+    socket = null;
   }
 }
