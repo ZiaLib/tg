@@ -18,7 +18,7 @@ class Client extends t.Client {
 
   late _EncryptedTransformer _transformer;
   final Map<int, Completer<t.Result>> _pending = {};
-  StreamController<UpdatesBase>? _streamController;
+  final _streamController = StreamController<UpdatesBase>.broadcast();
 
   List<t.DcOption> _dcOptions = [];
   StreamSubscription? _updateSubscription;
@@ -30,10 +30,7 @@ class Client extends t.Client {
 
   bool get connected => _connected;
 
-  Stream<UpdatesBase> get stream {
-    _streamController ??= StreamController<UpdatesBase>.broadcast();
-    return _streamController!.stream;
-  }
+  Stream<UpdatesBase> get stream => _streamController.stream;
 
   Client({
     required this.apiId,
@@ -202,11 +199,8 @@ class Client extends t.Client {
   }
 
   void _handleIncomingMessage(t.TlObject msg) {
-    print('testtesttest');
-    if (msg is t.UpdatesBase) {
-      if (_streamController?.isClosed == false) {
-        _streamController!.add(msg);
-      }
+    if (msg is UpdatesBase) {
+      _streamController.add(msg);
     }
     if (msg is t.MsgContainer) {
       for (final message in msg.messages) {
@@ -360,8 +354,6 @@ class Client extends t.Client {
     _connected = false;
     await _updateSubscription?.cancel();
     _updateSubscription = null;
-    await _streamController?.close();
-    _streamController = null;
     for (final completer in _pending.values) {
       if (!completer.isCompleted) {
         completer.completeError(
