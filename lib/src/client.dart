@@ -84,9 +84,7 @@ class Client extends t.Client {
         _connectionAttempts = 0;
         _migrating = false;
         break;
-      } catch (e, stack) {
-        print(e);
-        print(stack);
+      } catch (_) {
         _connected = false;
         _connectionAttempts++;
         if (connectionRetries != null &&
@@ -135,6 +133,22 @@ class Client extends t.Client {
         break;
     }
     socket = IoSocket(rawSocket);
+    await _updateSubscription?.cancel();
+    _updateSubscription = stream.listen(
+      (updates) {
+        onUpdate?.call(updates);
+      },
+      onError: (error) async {
+        if (autoReconnect) {
+          await _handleDisconnection();
+        }
+      },
+      onDone: () async {
+        if (autoReconnect) {
+          await _handleDisconnection();
+        }
+      },
+    );
     obfuscation = Obfuscation.random(false, session.dcOption!.id);
     idGenerator = MessageIdGenerator();
     await socket.send(obfuscation.preamble);
@@ -156,22 +170,6 @@ class Client extends t.Client {
     _transformer.stream.listen((v) {
       _handleIncomingMessage(v);
     });
-    await _updateSubscription?.cancel();
-    _updateSubscription = stream.listen(
-          (updates) {
-        onUpdate?.call(updates);
-      },
-      onError: (error) async {
-        if (autoReconnect) {
-          await _handleDisconnection();
-        }
-      },
-      onDone: () async {
-        if (autoReconnect) {
-          await _handleDisconnection();
-        }
-      },
-    );
     final config = await _initConnection().timeout(timeout);
     if (config.result?.dcOptions is List) {
       _dcOptions.clear();
@@ -298,6 +296,7 @@ class Client extends t.Client {
     final completer = Completer<t.Result>();
     final m = idGenerator._next(preferEncryption);
     if (preferEncryption && msgsToAck.isNotEmpty) {
+      idGenerator._next(false);
       // final ack = idGenerator._next(false);
       // final ackMsg = t.MsgsAck(msgIds: msgsToAck.toList());
       msgsToAck.clear();
