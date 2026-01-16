@@ -9,7 +9,7 @@ class IoSocket extends tg.SocketAbstraction {
   final Socket socket;
 
   @override
-  late final Stream<Uint8List> receiver = socket.asBroadcastStream();
+  Stream<Uint8List> get receiver => socket;
 
   @override
   Future<void> send(List<int> data) async {

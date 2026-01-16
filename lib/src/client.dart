@@ -323,17 +323,12 @@ class Client extends t.Client {
       // void nop(TlObject o) {}
       // nop(container);
     }
-    print('test1');
     _pending[m.id] = completer;
-    print('test2');
-    print(authorizationKey.toString());
     final buffer = authorizationKey.id == 0
         ? _encodeNoAuth(method, m)
         : _encodeWithAuth(method, m, 10, authorizationKey);
     obfuscation.send.encryptDecrypt(buffer, buffer.length);
-    print('test3');
     await socket.send(buffer);
-    print('test4');
     return completer.future;
   }
 
