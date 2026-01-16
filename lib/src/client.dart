@@ -179,17 +179,26 @@ class Client extends t.Client {
   }
 
   Future<t.Result<t.Config>> _initConnection() async {
-    final request = InitConnection(
-      apiId: apiId,
-      deviceModel: session.device!.deviceModel!,
-      appVersion: session.device!.appVersion!,
-      systemVersion: session.device!.systemVersion!,
-      systemLangCode: session.device!.systemLangCode!,
-      langCode: session.device!.langCode!,
-      langPack: '',
-      query: t.HelpGetConfig(),
-    );
-    return await invoke(InvokeWithLayer(layer: layer, query: request)) as t.Result<t.Config>;
+    try {
+      return await initConnection<t.Config>(
+        apiId: apiId,
+        deviceModel: session.device!.deviceModel!,
+        appVersion: session.device!.appVersion!,
+        systemVersion: session.device!.systemVersion!,
+        systemLangCode: session.device!.systemLangCode!,
+        langCode: session.device!.langCode!,
+        langPack: '',
+        query: t.HelpGetConfig(),
+      );
+    } catch (e, stack) {
+      print('initerr');
+      print(e);
+      print(stack);
+      rethrow;
+    }
+    // final request = InitConnection();
+    // return await invoke(InvokeWithLayer(layer: layer, query: request))
+    //     as t.Result<t.Config>;
     // return await invokeWithLayer<t.Config>(query: request, layer: layer);
   }
 
