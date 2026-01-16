@@ -189,7 +189,8 @@ class Client extends t.Client {
       langPack: '',
       query: t.HelpGetConfig(),
     );
-    return await invokeWithLayer<t.Config>(query: request, layer: layer);
+    return await invoke(InvokeWithLayer(layer: layer, query: request)) as t.Result<t.Config>;
+    // return await invokeWithLayer<t.Config>(query: request, layer: layer);
   }
 
   Future<void> _handleDisconnection() async {
