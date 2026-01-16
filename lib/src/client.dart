@@ -135,22 +135,22 @@ class Client extends t.Client {
         break;
     }
     socket = IoSocket(rawSocket);
-    await _updateSubscription?.cancel();
-    _updateSubscription = stream.listen(
-      (updates) {
-        onUpdate?.call(updates);
-      },
-      onError: (error) async {
-        if (autoReconnect) {
-          await _handleDisconnection();
-        }
-      },
-      onDone: () async {
-        if (autoReconnect) {
-          await _handleDisconnection();
-        }
-      },
-    );
+    // await _updateSubscription?.cancel();
+    // _updateSubscription = stream.listen(
+    //   (updates) {
+    //     onUpdate?.call(updates);
+    //   },
+    //   onError: (error) async {
+    //     if (autoReconnect) {
+    //       await _handleDisconnection();
+    //     }
+    //   },
+    //   onDone: () async {
+    //     if (autoReconnect) {
+    //       await _handleDisconnection();
+    //     }
+    //   },
+    // );
     obfuscation = Obfuscation.random(false, session.dcOption!.id);
     idGenerator = MessageIdGenerator();
     await socket.send(obfuscation.preamble);
@@ -165,7 +165,7 @@ class Client extends t.Client {
     ).timeout(timeout);
     authorizationKey = session.authorizationKey!;
     _transformer = _EncryptedTransformer(
-      socket.receiver, // << 여기
+      socket.receiver,
       obfuscation,
       authorizationKey,
     );
