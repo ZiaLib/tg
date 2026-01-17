@@ -3,8 +3,8 @@ part of '../tg.dart';
 class Client extends t.Client {
   final int apiId;
   final String apiHash;
-  final void Function(t.UpdatesBase updates)? onUpdate;
-  final void Function(AuthorizationKey authKey)? onAuthKeyUpdate;
+  void Function(t.UpdatesBase updates)? onUpdate;
+  void Function(AuthorizationKey authKey)? onAuthKeyUpdate;
   TelegramSession session;
 
   final Duration timeout;
