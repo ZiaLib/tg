@@ -195,7 +195,7 @@ class Client extends t.Client {
     } catch (_) {}
   }
 
-  Future<void> _handleIncomingMessage(t.TlObject msg) async {
+  void _handleIncomingMessage(t.TlObject msg) {
     if (msg is UpdatesBase) {
       _streamController.add(msg);
     }
@@ -220,7 +220,6 @@ class Client extends t.Client {
         msg.newServerSalt,
       );
       onAuthKeyUpdate?.call(session.authorizationKey!);
-      await connect();
       if (method != null && task != null && !task.isCompleted) {
         _pending.remove(badMsgId);
         _pendingMethods.remove(badMsgId);
@@ -355,7 +354,7 @@ class Client extends t.Client {
     _pendingMethods[m.id] = method;
     final buffer = session.authorizationKey!.id == 0
         ? _encodeNoAuth(method, m)
-        : _encodeWithAuth(method, m, 10, session.authorizationKey!);
+        : _encodeWithAuth(method, m, 12, session.authorizationKey!);
     obfuscation.send.encryptDecrypt(buffer, buffer.length);
     await socket.send(buffer);
     return completer.future;
