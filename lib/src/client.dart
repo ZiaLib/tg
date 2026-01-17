@@ -16,6 +16,7 @@ class Client extends t.Client {
   late Obfuscation obfuscation;
   late IoSocket socket;
   late MessageIdGenerator idGenerator;
+  late int _sessionId;
 
   late _EncryptedTransformer _transformer;
   final Map<int, Completer<t.Result>> _pending = {};
@@ -29,9 +30,7 @@ class Client extends t.Client {
   bool _migrating = false;
 
   List<t.DcOption> get dcOptions => _dcOptions;
-
   bool get connected => _connected;
-
   Stream<UpdatesBase> get stream => _streamController.stream;
 
   Client({
@@ -48,10 +47,10 @@ class Client extends t.Client {
   }) : super();
 
   static Future<AuthorizationKey> authorize(
-    SocketAbstraction socket,
-    Obfuscation obfuscation,
-    MessageIdGenerator idGenerator,
-  ) async {
+      SocketAbstraction socket,
+      Obfuscation obfuscation,
+      MessageIdGenerator idGenerator,
+      ) async {
     final Set<int> msgsToAck = {};
     final uot = _UnEncryptedTransformer(
       socket.receiver,
@@ -98,12 +97,13 @@ class Client extends t.Client {
 
   Future<void> _performConnect() async {
     await close();
+    _sessionId = Random().nextInt(1 << 31);
     session.dcOption ??= defaultDcOption;
     session.device = TelegramSessionDevice(
       deviceModel: session.device?.deviceModel ?? Platform.operatingSystem,
       appVersion: session.device?.appVersion ?? '1.0.0',
       systemVersion:
-          session.device?.systemVersion ?? Platform.operatingSystemVersion,
+      session.device?.systemVersion ?? Platform.operatingSystemVersion,
       systemLangCode: session.device?.systemLangCode ?? 'en',
       langCode: session.device?.langCode ?? 'en',
     );
@@ -133,7 +133,7 @@ class Client extends t.Client {
     }
     socket = IoSocket(rawSocket);
     _updateSubscription = stream.listen(
-      (updates) {
+          (updates) {
         onUpdate?.call(updates);
       },
       onError: (error) async {
@@ -208,9 +208,6 @@ class Client extends t.Client {
       _handleIncomingMessage(msg.body);
       return;
     } else if (msg is t.BadServerSalt) {
-      if (_pending.containsKey(msg.badMsgId)) {
-        print(msg.toString());
-      }
       final badMsgId = msg.badMsgId;
       final task = _pending[badMsgId];
       final method = _pendingMethods[badMsgId];
@@ -220,6 +217,7 @@ class Client extends t.Client {
         msg.newServerSalt,
       );
       onAuthKeyUpdate?.call(session.authorizationKey!);
+      _sessionId = Random().nextInt(1 << 31);
       if (method != null && task != null && !task.isCompleted) {
         _pending.remove(badMsgId);
         _pendingMethods.remove(badMsgId);
@@ -234,18 +232,12 @@ class Client extends t.Client {
         return;
       }
     } else if (msg is t.BadMsgNotification) {
-      if (_pending.containsKey(msg.badMsgId)) {
-        print(msg.toString());
-      }
       final badMsgId = msg.badMsgId;
       final task = _pending[badMsgId];
       task?.completeError(BadMessageException._(msg));
       _pending.remove(badMsgId);
       _pendingMethods.remove(badMsgId);
     } else if (msg is t.RpcResult) {
-      if (_pending.containsKey(msg.reqMsgId)) {
-        print(msg.toString());
-      }
       final reqMsgId = msg.reqMsgId;
       final task = _pending[reqMsgId];
       final result = msg.result;
@@ -257,7 +249,7 @@ class Client extends t.Client {
       } else if (result is t.GzipPacked) {
         final gZippedData = GZipDecoder().decodeBytes(result.packedData);
         final newObj =
-            BinaryReader(Uint8List.fromList(gZippedData)).readObject();
+        BinaryReader(Uint8List.fromList(gZippedData)).readObject();
         final newRpcResult = t.RpcResult(reqMsgId: reqMsgId, result: newObj);
         _handleIncomingMessage(newRpcResult);
         return;
@@ -278,9 +270,9 @@ class Client extends t.Client {
   }
 
   Future<t.Result<t.TlObject>> _invokeWithRetry(
-    t.TlMethod method,
-    int attempts,
-  ) async {
+      t.TlMethod method,
+      int attempts,
+      ) async {
     try {
       if (!_connected) {
         if (autoReconnect && !_migrating) {
@@ -296,7 +288,7 @@ class Client extends t.Client {
           _migrating = true;
           final dcId = int.parse(error.errorMessage.split('_').last);
           session.dcOption = _dcOptions.firstWhere(
-            (dcOption) => dcOption.id == dcId && !dcOption.ipv6,
+                (dcOption) => dcOption.id == dcId && !dcOption.ipv6,
           );
           await connect();
           return await _invokeWithRetry(method, attempts);
@@ -344,17 +336,14 @@ class Client extends t.Client {
           )
         ],
       );
-      void nop(TlObject o) {} // FIXME: wtf?
+      void nop(TlObject o) {}
       nop(container);
-    }
-    if (method is t.InvokeWithLayer) {
-      print('invokewith!');
     }
     _pending[m.id] = completer;
     _pendingMethods[m.id] = method;
     final buffer = session.authorizationKey!.id == 0
         ? _encodeNoAuth(method, m)
-        : _encodeWithAuth(method, m, 12, session.authorizationKey!);
+        : _encodeWithAuth(method, m, _sessionId, session.authorizationKey!);
     obfuscation.send.encryptDecrypt(buffer, buffer.length);
     await socket.send(buffer);
     return completer.future;
