@@ -18,7 +18,6 @@ class Client extends t.Client {
   late MessageIdGenerator idGenerator;
   late int _sessionId;
 
-  late _EncryptedTransformer _transformer;
   final Map<int, Completer<t.Result>> _pending = {};
   final Map<int, t.TlMethod> _pendingMethods = {};
   final _streamController = StreamController<UpdatesBase>.broadcast();
@@ -28,9 +27,12 @@ class Client extends t.Client {
   bool _connected = false;
   int _connectionAttempts = 0;
   bool _migrating = false;
+  final Map<int, Client> _dcClients = {};
 
   List<t.DcOption> get dcOptions => _dcOptions;
+
   bool get connected => _connected;
+
   Stream<UpdatesBase> get stream => _streamController.stream;
 
   Client({
@@ -47,10 +49,10 @@ class Client extends t.Client {
   }) : super();
 
   static Future<AuthorizationKey> authorize(
-      SocketAbstraction socket,
-      Obfuscation obfuscation,
-      MessageIdGenerator idGenerator,
-      ) async {
+    SocketAbstraction socket,
+    Obfuscation obfuscation,
+    MessageIdGenerator idGenerator,
+  ) async {
     final Set<int> msgsToAck = {};
     final uot = _UnEncryptedTransformer(
       socket.receiver,
@@ -103,7 +105,7 @@ class Client extends t.Client {
       deviceModel: session.device?.deviceModel ?? Platform.operatingSystem,
       appVersion: session.device?.appVersion ?? '1.0.0',
       systemVersion:
-      session.device?.systemVersion ?? Platform.operatingSystemVersion,
+          session.device?.systemVersion ?? Platform.operatingSystemVersion,
       systemLangCode: session.device?.systemLangCode ?? 'en',
       langCode: session.device?.langCode ?? 'en',
     );
@@ -133,7 +135,7 @@ class Client extends t.Client {
     }
     socket = IoSocket(rawSocket);
     _updateSubscription = stream.listen(
-          (updates) {
+      (updates) {
         onUpdate?.call(updates);
       },
       onError: (error) async {
@@ -159,12 +161,12 @@ class Client extends t.Client {
       obfuscation,
       idGenerator,
     ).timeout(timeout);
-    _transformer = _EncryptedTransformer(
+    final transformer = _EncryptedTransformer(
       socket.receiver,
       obfuscation,
       session.authorizationKey!,
     );
-    _transformer.stream.listen((v) {
+    transformer.stream.listen((v) {
       _handleIncomingMessage(v);
     });
     final config = await _initConnection().timeout(timeout);
@@ -249,7 +251,7 @@ class Client extends t.Client {
       } else if (result is t.GzipPacked) {
         final gZippedData = GZipDecoder().decodeBytes(result.packedData);
         final newObj =
-        BinaryReader(Uint8List.fromList(gZippedData)).readObject();
+            BinaryReader(Uint8List.fromList(gZippedData)).readObject();
         final newRpcResult = t.RpcResult(reqMsgId: reqMsgId, result: newObj);
         _handleIncomingMessage(newRpcResult);
         return;
@@ -270,9 +272,9 @@ class Client extends t.Client {
   }
 
   Future<t.Result<t.TlObject>> _invokeWithRetry(
-      t.TlMethod method,
-      int attempts,
-      ) async {
+    t.TlMethod method,
+    int attempts,
+  ) async {
     try {
       if (!_connected) {
         if (autoReconnect && !_migrating) {
@@ -284,14 +286,18 @@ class Client extends t.Client {
       final result = await _invokeInternal(method).timeout(timeout);
       final error = result.error;
       if (error != null) {
-        if (error.errorMessage.contains('MIGRATE')) {
+        if (error.errorMessage.startsWith('PHONE_MIGRATE_')) {
           _migrating = true;
           final dcId = int.parse(error.errorMessage.split('_').last);
           session.dcOption = _dcOptions.firstWhere(
-                (dcOption) => dcOption.id == dcId && !dcOption.ipv6,
+            (dcOption) => dcOption.id == dcId && !dcOption.ipv6,
           );
           await connect();
           return await _invokeWithRetry(method, attempts);
+        } else if (error.errorMessage.contains('_MIGRATE_')) {
+          final dcId = int.parse(error.errorMessage.split('_').last);
+          final result = await _invokeOnDC(error, method, dcId);
+          return result;
         }
         if (_shouldRetry(error, attempts)) {
           await Future.delayed(retryDelay);
@@ -309,6 +315,68 @@ class Client extends t.Client {
       }
       rethrow;
     }
+  }
+
+  Future<t.Result<t.TlObject>> _invokeOnDC(
+    t.RpcError error,
+    t.TlMethod method,
+    int dcId,
+  ) async {
+    if (_dcClients.containsKey(dcId)) {
+      return await _dcClients[dcId]!._invokeInternal(method).timeout(timeout);
+    }
+    final dcClient = await _createDCClient(dcId);
+    if (dcClient == null) {
+      return t.Result.error(error);
+    }
+    _dcClients[dcId] = dcClient;
+    return await dcClient._invokeInternal(method).timeout(timeout);
+  }
+
+  Future<Client?> _createDCClient(int dcId) async {
+    final exportRes = await _invokeInternal(
+      t.AuthExportAuthorization(dcId: dcId),
+    ).timeout(timeout);
+    if (exportRes.error != null) {
+      return null;
+    }
+    final exportAuth = exportRes.result as t.AuthExportedAuthorization;
+    final dcOptionIndex = _dcOptions.indexWhere(
+      (option) => option.id == dcId && !option.ipv6,
+    );
+    if (dcOptionIndex == -1) {
+      return null;
+    }
+    final dcOption = _dcOptions[dcOptionIndex];
+    final newSession = TelegramSession(
+      dcOption: dcOption,
+      device: session.device,
+      proxyConfig: session.proxyConfig,
+    );
+    final dcClient = Client(
+      apiId: apiId,
+      apiHash: apiHash,
+      session: newSession,
+      timeout: timeout,
+      requestRetries: requestRetries,
+      connectionRetries: connectionRetries,
+      retryDelay: retryDelay,
+      autoReconnect: false,
+    );
+    await dcClient.connect();
+    final importRes = await dcClient
+        ._invokeInternal(
+          t.AuthImportAuthorization(
+            id: exportAuth.id,
+            bytes: exportAuth.bytes,
+          ),
+        )
+        .timeout(timeout);
+    if (importRes.error != null) {
+      await dcClient.close();
+      return null;
+    }
+    return dcClient;
   }
 
   Future<t.Result<t.TlObject>> _invokeInternal(t.TlMethod method) async {
@@ -387,6 +455,12 @@ class Client extends t.Client {
     }
     _pending.clear();
     _pendingMethods.clear();
+    for (final dcClient in _dcClients.values) {
+      try {
+        await dcClient.close();
+      } catch (_) {}
+    }
+    _dcClients.clear();
     try {
       await socket.socket.close();
     } catch (_) {}
