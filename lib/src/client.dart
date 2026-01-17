@@ -5,6 +5,7 @@ class Client extends t.Client {
   final String apiHash;
   void Function(t.UpdatesBase updates)? onUpdate;
   void Function(AuthorizationKey authKey)? onAuthKeyUpdate;
+  void Function()? onUnauthorized;
   TelegramSession session;
 
   final Duration timeout;
@@ -41,6 +42,7 @@ class Client extends t.Client {
     required this.session,
     this.onUpdate,
     this.onAuthKeyUpdate,
+    this.onUnauthorized,
     this.timeout = const Duration(seconds: 10),
     this.requestRetries = 5,
     this.connectionRetries,
@@ -49,10 +51,10 @@ class Client extends t.Client {
   }) : super();
 
   static Future<AuthorizationKey> authorize(
-    SocketAbstraction socket,
-    Obfuscation obfuscation,
-    MessageIdGenerator idGenerator,
-  ) async {
+      SocketAbstraction socket,
+      Obfuscation obfuscation,
+      MessageIdGenerator idGenerator,
+      ) async {
     final Set<int> msgsToAck = {};
     final uot = _UnEncryptedTransformer(
       socket.receiver,
@@ -105,7 +107,7 @@ class Client extends t.Client {
       deviceModel: session.device?.deviceModel ?? Platform.operatingSystem,
       appVersion: session.device?.appVersion ?? '1.0.0',
       systemVersion:
-          session.device?.systemVersion ?? Platform.operatingSystemVersion,
+      session.device?.systemVersion ?? Platform.operatingSystemVersion,
       systemLangCode: session.device?.systemLangCode ?? 'en',
       langCode: session.device?.langCode ?? 'en',
     );
@@ -135,7 +137,7 @@ class Client extends t.Client {
     }
     socket = IoSocket(rawSocket);
     _updateSubscription = stream.listen(
-      (updates) {
+          (updates) {
         onUpdate?.call(updates);
       },
       onError: (error) async {
@@ -244,6 +246,9 @@ class Client extends t.Client {
       final task = _pending[reqMsgId];
       final result = msg.result;
       if (result is t.RpcError) {
+        if (result.errorCode == 401) {
+          close().then((_) => onUnauthorized?.call());
+        }
         task?.complete(t.Result.error(result));
         _pending.remove(reqMsgId);
         _pendingMethods.remove(reqMsgId);
@@ -251,7 +256,7 @@ class Client extends t.Client {
       } else if (result is t.GzipPacked) {
         final gZippedData = GZipDecoder().decodeBytes(result.packedData);
         final newObj =
-            BinaryReader(Uint8List.fromList(gZippedData)).readObject();
+        BinaryReader(Uint8List.fromList(gZippedData)).readObject();
         final newRpcResult = t.RpcResult(reqMsgId: reqMsgId, result: newObj);
         _handleIncomingMessage(newRpcResult);
         return;
@@ -272,9 +277,9 @@ class Client extends t.Client {
   }
 
   Future<t.Result<t.TlObject>> _invokeWithRetry(
-    t.TlMethod method,
-    int attempts,
-  ) async {
+      t.TlMethod method,
+      int attempts,
+      ) async {
     try {
       if (!_connected) {
         if (autoReconnect && !_migrating) {
@@ -290,7 +295,7 @@ class Client extends t.Client {
           _migrating = true;
           final dcId = int.parse(error.errorMessage.split('_').last);
           session.dcOption = _dcOptions.firstWhere(
-            (dcOption) => dcOption.id == dcId && !dcOption.ipv6,
+                (dcOption) => dcOption.id == dcId && !dcOption.ipv6,
           );
           await connect();
           return await _invokeWithRetry(method, attempts);
@@ -318,10 +323,10 @@ class Client extends t.Client {
   }
 
   Future<t.Result<t.TlObject>> _invokeOnDC(
-    t.RpcError error,
-    t.TlMethod method,
-    int dcId,
-  ) async {
+      t.RpcError error,
+      t.TlMethod method,
+      int dcId,
+      ) async {
     if (_dcClients.containsKey(dcId)) {
       return await _dcClients[dcId]!._invokeInternal(method).timeout(timeout);
     }
@@ -342,7 +347,7 @@ class Client extends t.Client {
     }
     final exportAuth = exportRes.result as t.AuthExportedAuthorization;
     final dcOptionIndex = _dcOptions.indexWhere(
-      (option) => option.id == dcId && !option.ipv6,
+          (option) => option.id == dcId && !option.ipv6,
     );
     if (dcOptionIndex == -1) {
       return null;
@@ -366,11 +371,11 @@ class Client extends t.Client {
     await dcClient.connect();
     final importRes = await dcClient
         ._invokeInternal(
-          t.AuthImportAuthorization(
-            id: exportAuth.id,
-            bytes: exportAuth.bytes,
-          ),
-        )
+      t.AuthImportAuthorization(
+        id: exportAuth.id,
+        bytes: exportAuth.bytes,
+      ),
+    )
         .timeout(timeout);
     if (importRes.error != null) {
       await dcClient.close();
