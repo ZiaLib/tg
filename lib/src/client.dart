@@ -147,11 +147,13 @@ class Client extends t.Client {
         onUpdate?.call(updates);
       },
       onError: (error) async {
+        print('err');
         if (autoReconnect) {
           await _handleDisconnection();
         }
       },
       onDone: () async {
+        print('onDone');
         if (autoReconnect) {
           await _handleDisconnection();
         }
